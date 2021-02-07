@@ -189,3 +189,9 @@ $RECYCLE.BIN/
 
 
 # End of https://www.gitignore.io/api/c,vim,macos,linux,emacs,windows
+
+assembler
+test-assembler
+*~
+core
+vgcore*
