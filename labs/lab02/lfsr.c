@@ -1,16 +1,19 @@
-#include <stdio.h>
+#include "bit_ops.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 void lfsr_calculate(uint16_t *reg) {
-
-  /* YOUR CODE HERE */
-
+  int left = get_bit(*reg, 0) ^ get_bit(*reg, 2);
+  left = left ^ get_bit(*reg, 3);
+  left = left ^ get_bit(*reg, 5);
+  *reg = *reg >> 1;
+  set_bit((unsigned int *)reg, 15, left);
 }
 
 int main() {
-  int8_t *numbers = (int8_t*) malloc(sizeof(int8_t) * 65535);
+  int8_t *numbers = (int8_t *)malloc(sizeof(int8_t) * 65535);
   if (numbers == NULL) {
     printf("Memory allocation failed!");
     exit(1);
