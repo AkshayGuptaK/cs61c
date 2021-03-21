@@ -66,7 +66,10 @@ main:
 f:
 	la	t0, output	# Hmm... why might this be a good idea?
 	
-	# YOUR CODE GOES HERE!
+	slli t1, a0, 2 # multiply a0 by 4
+	addi t0, t0, 12 # add 12 to t0
+    add t0, t0, t1 # adjust t0 by t1
+    lw a0, 0(t0) # get the data
 	
 	jr	ra		# Always remember to jr ra after your function!
   
