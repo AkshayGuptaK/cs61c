@@ -40,17 +40,17 @@
 int beargit_init(void) {
   fs_mkdir(".beargit");
 
-  FILE* findex = fopen(".beargit/.index", "w");
+  FILE *findex = fopen(".beargit/.index", "w");
   fclose(findex);
-  
-  write_string_to_file(".beargit/.prev", "0000000000000000000000000000000000000000");
+
+  write_string_to_file(".beargit/.prev",
+                       "0000000000000000000000000000000000000000");
 
   return 0;
 }
 
-
 /* beargit add <filename>
- * 
+ *
  * - Append filename to list in .beargit/.index if it isn't in there yet
  *
  * Possible errors (to stderr):
@@ -60,12 +60,12 @@ int beargit_init(void) {
  * - None if successful
  */
 
-int beargit_add(const char* filename) {
-  FILE* findex = fopen(".beargit/.index", "r");
+int beargit_add(const char *filename) {
+  FILE *findex = fopen(".beargit/.index", "r");
   FILE *fnewindex = fopen(".beargit/.newindex", "w");
 
   char line[FILENAME_SIZE];
-  while(fgets(line, sizeof(line), findex)) {
+  while (fgets(line, sizeof(line), findex)) {
     strtok(line, "\n");
     if (strcmp(line, filename) == 0) {
       fprintf(stderr, "ERROR: File %s already added\n", filename);
@@ -87,71 +87,193 @@ int beargit_add(const char* filename) {
   return 0;
 }
 
-
 /* beargit rm <filename>
- * 
+ *
  * See "Step 2" in the homework 1 spec.
  *
  */
 
-int beargit_rm(const char* filename) {
-  /* COMPLETE THE REST */
+int beargit_rm(const char *filename) {
+  FILE *findex = fopen(".beargit/.index", "r");
+  FILE *fnewindex = fopen(".beargit/.newindex", "w");
+  int matches_found = 0;
 
+  char line[FILENAME_SIZE];
+  while (fgets(line, sizeof(line), findex)) {
+    strtok(line, "\n");
+    if (strcmp(line, filename) == 0) {
+      matches_found++;
+    } else {
+      fprintf(fnewindex, "%s\n", line);
+    }
+  }
+
+  if (matches_found == 0) {
+    fprintf(stderr, "ERROR: File %s not tracked\n", filename);
+    fs_rm(".beargit/.newindex");
+    fclose(findex);
+    fclose(fnewindex);
+    return 1;
+  }
+
+  fclose(findex);
+  fclose(fnewindex);
+  fs_mv(".beargit/.newindex", ".beargit/.index");
   return 0;
 }
 
-/* beargit commit -m <msg>
- *
- * See "Step 3" in the homework 1 spec.
- *
- */
+const char *go_bears = "GO BEARS!";
 
-const char* go_bears = "GO BEARS!";
+int compare(const char *str1, const char *str2) {
+  while (*str1 != '\0' && *str2 != '\0') {
+    if (*str1 != *str2)
+      return 0;
+    str1++;
+    str2++;
+  }
+  return (*str2 == '\0');
+}
 
-int is_commit_msg_ok(const char* msg) {
-  /* COMPLETE THE REST */
+int is_commit_msg_ok(const char *msg) {
+  const char *string_two = go_bears;
+  while (*msg != '\0') {
+    if (*msg == *string_two && compare(msg, string_two))
+      return 1;
+    msg++;
+  }
   return 0;
 }
 
-void next_commit_id(char* commit_id) {
-  /* COMPLETE THE REST */
+char next_digit(char *digit) {
+  switch (*digit) {
+  case '1':
+    return '6';
+  case '6':
+    return 'c';
+  case 'c':
+    return '1';
+  default:
+    return 1;
+  }
 }
 
-int beargit_commit(const char* msg) {
+char *next_commit_id(char *commit_id) {
+  if (compare(commit_id, "0000000000000000000000000000000000000000")) {
+    commit_id = "1111111111111111111111111111111111111111";
+  } else {
+    char change;
+    char *commit_id_cursor = commit_id;
+    do {
+      change = next_digit(commit_id_cursor);
+      *commit_id_cursor = change;
+      commit_id_cursor++;
+    } while (change == '1');
+  }
+  return commit_id;
+}
+
+int beargit_commit(const char *msg) {
   if (!is_commit_msg_ok(msg)) {
     fprintf(stderr, "ERROR: Message must contain \"%s\"\n", go_bears);
     return 1;
   }
-
   char commit_id[COMMIT_ID_SIZE];
-  read_string_from_file(".beargit/.prev", commit_id, COMMIT_ID_SIZE);
-  next_commit_id(commit_id);
+  FILE *findex = fopen(".beargit/.prev", "r");
+  fgets(commit_id, COMMIT_ID_SIZE, findex);
+  strtok(commit_id, "\n");
+  char *new_commit_id = next_commit_id(commit_id);
 
-  /* COMPLETE THE REST */
+  char new_dir[10 + COMMIT_ID_SIZE];
+  strcpy(new_dir, ".beargit/");
+  strcat(new_dir, new_commit_id);
+  fs_mkdir(new_dir);
+  strcat(new_dir, "/");
+
+  char file_path[10 + FILENAME_SIZE + COMMIT_ID_SIZE];
+  strcpy(file_path, new_dir);
+  strcat(file_path, ".index");
+  fs_cp(".beargit/.index", file_path);
+
+  strcpy(file_path, new_dir);
+  strcat(file_path, ".prev");
+  fs_cp(".beargit/.prev", file_path);
+
+  findex = fopen(".beargit/.index", "r");
+  char line[FILENAME_SIZE];
+
+  while (fgets(line, sizeof(line), findex)) {
+    strtok(line, "\n");
+    strcpy(file_path, new_dir);
+    strcat(file_path, line);
+    fs_cp(line, file_path);
+  }
+  fclose(findex);
+
+  findex = fopen(".beargit/.prev", "w");
+  fprintf(findex, "%s\n", new_commit_id);
+  fclose(findex);
+
+  strcpy(file_path, new_dir);
+  strcat(file_path, ".msg");
+  findex = fopen(file_path, "w");
+  fprintf(findex, "%s", msg);
+  fclose(findex);
 
   return 0;
 }
-
-/* beargit status
- *
- * See "Step 1" in the homework 1 spec.
- *
- */
 
 int beargit_status() {
-  /* COMPLETE THE REST */
+  int number_of_files = 0;
+  FILE *findex = fopen(".beargit/.index", "r");
+  char line[FILENAME_SIZE];
+
+  fprintf(stdout, "Tracked files:\n\n");
+  while (fgets(line, sizeof(line), findex)) {
+    strtok(line, "\n");
+    fprintf(stdout, "  %s\n", line);
+    number_of_files++;
+  }
+
+  fprintf(stdout, "\n%d files total\n", number_of_files);
+  fclose(findex);
 
   return 0;
 }
 
-/* beargit log
- *
- * See "Step 4" in the homework 1 spec.
- *
- */
-
 int beargit_log() {
-  /* COMPLETE THE REST */
-
+  char *beargit_dir = ".beargit/";
+  char *path_to_prev = ".beargit/.prev";
+  char latest_commit[COMMIT_ID_SIZE];
+  FILE *findex = fopen(path_to_prev, "r");
+  fgets(latest_commit, COMMIT_ID_SIZE, findex);
+  strtok(latest_commit, "\n");
+  if (compare(latest_commit, "0000000000000000000000000000000000000000")) {
+    fclose(findex);
+    fprintf(stderr, "ERROR: There are no commits!\n");
+    return 1;
+  }
+  char msg[MSG_SIZE];
+  char commit_path[10 + COMMIT_ID_SIZE];
+  char msg_path[15 + COMMIT_ID_SIZE];
+  char prev_path[15 + COMMIT_ID_SIZE];
+  do {
+    fprintf(stdout, "\ncommit %s\n", latest_commit);
+    strcpy(commit_path, beargit_dir);
+    strcat(commit_path, latest_commit);
+    strcpy(msg_path, commit_path);
+    strcat(msg_path, "/.msg");
+    findex = fopen(msg_path, "r");
+    fgets(msg, MSG_SIZE, findex);
+    strtok(msg, "\n");
+    fprintf(stdout, "    %s\n", msg);
+    strcpy(prev_path, commit_path);
+    strcat(prev_path, "/.prev");
+    findex = fopen(prev_path, "r");
+    fgets(latest_commit, COMMIT_ID_SIZE, findex);
+    strtok(latest_commit, "\n");
+  } while (compare(latest_commit, "0000000000000000000000000000000000000000") ==
+           0);
+  fclose(findex);
+  fprintf(stdout, "\n");
   return 0;
 }
